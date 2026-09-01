@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Le reste des clés est généré par Xcode (GENERATE_INFOPLIST_FILE).
+	     Ici seulement ce qui n'a pas d'équivalent en réglage de build. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- Autorise le serveur de développement en http sur le réseau local ;
+		     la production reste en https. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Pour joindre Barda sur ton Mac pendant le développement.</string>
+</dict>
+</plist>
