@@ -3,14 +3,20 @@ import Foundation
 
 /// Pilote BLE de l'étiqueteuse Fichero D11s (AiYin D11s).
 ///
-/// Protocole repris tel quel du client TypeScript de `fichero-printer`, que la
-/// version web utilise déjà : mêmes UUID, mêmes commandes, mêmes temporisations.
+/// Protocole repris tel quel du client TypeScript de `fichero-printer` (MIT), que
+/// la version web utilise déjà : mêmes UUID, mêmes commandes, mêmes temporisations.
 /// Ici, seule la couche transport change — CoreBluetooth au lieu de Web Bluetooth.
 ///
 /// Tout le dialogue se déroule sur `workQueue`, qui a le droit de bloquer sur des
 /// sémaphores ; les rappels CoreBluetooth arrivent sur `bleQueue`. Le thread
 /// principal n'est jamais bloqué.
-final class Printer: NSObject {
+final class FicheroD11s: NSObject, LabelPrinter {
+
+    // MARK: - Identité (mêmes valeurs que `src/lib/printers/models.ts` côté web)
+
+    let id = "fichero-d11s"
+    let name = "Fichero D11s"
+    let bytesPerRow = 12      // 96 points de tête d'impression
 
     // MARK: - Constantes du protocole
 
@@ -19,7 +25,6 @@ final class Printer: NSObject {
     private static let notifyUUID  = CBUUID(string: "00002AF0-0000-1000-8000-00805F9B34FB")
 
     private static let namePrefixes = ["FICHERO", "D11s_"]
-    private static let bytesPerRow  = 12      // 96 px de tête d'impression
     private static let chunkSize    = 200
     private static let chunkDelay   = 0.020
 
@@ -56,8 +61,8 @@ final class Printer: NSObject {
 
     // MARK: - État
 
-    private let bleQueue  = DispatchQueue(label: "com.example.barda.ble")
-    private let workQueue = DispatchQueue(label: "com.example.barda.print")
+    private let bleQueue  = DispatchQueue(label: "barda.fichero-d11s.ble")
+    private let workQueue = DispatchQueue(label: "barda.fichero-d11s.print")
     private let lock = NSLock()
 
     private var central: CBCentralManager!
@@ -120,7 +125,7 @@ final class Printer: NSObject {
         _ = try send(Cmd.setDensity(density), waitReply: true)
         Thread.sleep(forTimeInterval: 0.1)
 
-        var header: [UInt8] = [0x1d, 0x76, 0x30, 0x00, UInt8(Self.bytesPerRow), 0x00,
+        var header: [UInt8] = [0x1d, 0x76, 0x30, 0x00, UInt8(bytesPerRow), 0x00,
                                UInt8(rows & 0xff), UInt8((rows >> 8) & 0xff)]
         var payload = Data(header); payload.append(raster)
         header.removeAll()
@@ -247,7 +252,7 @@ final class Printer: NSObject {
 
 // MARK: - Rappels CoreBluetooth
 
-extension Printer: CBCentralManagerDelegate {
+extension FicheroD11s: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state != .unknown && central.state != .resetting { powerSemaphore.signal() }
     }
@@ -279,7 +284,7 @@ extension Printer: CBCentralManagerDelegate {
     }
 }
 
-extension Printer: CBPeripheralDelegate {
+extension FicheroD11s: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let service = peripheral.services?.first(where: { $0.uuid == Self.serviceUUID }) else {
             serviceSemaphore.signal(); return

@@ -1,0 +1,10 @@
+// Copie ce fichier en Local.xcconfig : il est ignoré par git.
+
+// Ton équipe Apple Developer (Xcode ▸ Settings ▸ Accounts, ou developer.apple.com ▸ Membership).
+DEVELOPMENT_TEAM = ABCDE12345
+
+// Un identifiant à toi, en domaine inversé.
+PRODUCT_BUNDLE_IDENTIFIER = com.exemple.barda
+
+// L'adresse de ton instance Barda.
+BARDA_DEFAULT_URL = https:/$()/barda.example.com

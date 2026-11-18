@@ -1,18 +1,30 @@
 import SwiftUI
 
+/// L'adresse chargée au premier lancement : `BARDA_DEFAULT_URL`, posée au build par
+/// `Barda.xcconfig` (la démo publique) ou par ton `Local.xcconfig` (ton instance).
+private let defaultURL: String = {
+    let v = Bundle.main.object(forInfoDictionaryKey: "BardaDefaultURL") as? String ?? ""
+    return v.hasPrefix("http") ? v : "https://showcase-barda.can-ali.fr"
+}()
+
+/// Le fond de la Suite : nuit en sombre, gris très clair en clair, comme la page.
+private let fond = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark
+    ? UIColor(red: 0.043, green: 0.067, blue: 0.125, alpha: 1)
+    : UIColor(red: 0.957, green: 0.965, blue: 0.980, alpha: 1) })
+
 struct ContentView: View {
-    @AppStorage("baseURL") private var baseURL = "https://barda.example.com"
+    @AppStorage("baseURL") private var baseURL = defaultURL
     @State private var loadError: String?
     @State private var toast: String?
     @State private var editingURL = false
     @State private var draftURL = ""
     @State private var reloadToken = 0
 
-    private var url: URL { URL(string: baseURL) ?? URL(string: "https://barda.example.com")! }
+    private var url: URL { URL(string: baseURL) ?? URL(string: defaultURL)! }
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color(red: 0.06, green: 0.07, blue: 0.08).ignoresSafeArea()
+            fond.ignoresSafeArea()
 
             WebView(url: url, loadError: $loadError, toast: $toast, reloadToken: reloadToken)
                 .ignoresSafeArea(.container, edges: .bottom)
@@ -22,7 +34,7 @@ struct ContentView: View {
                     .font(.footnote)
                     .padding(.horizontal, 14).padding(.vertical, 10)
                     .background(.ultraThinMaterial, in: Capsule())
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 96)
                     .transition(.opacity)
             }
 
@@ -41,10 +53,9 @@ struct ContentView: View {
                 }
                 .padding(28)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(red: 0.06, green: 0.07, blue: 0.08))
+                .background(fond)
             }
         }
-        .preferredColorScheme(.dark)
         .animation(.easeInOut(duration: 0.2), value: toast)
         .alert("Adresse de Barda", isPresented: $editingURL) {
             TextField("https://…", text: $draftURL)
@@ -57,7 +68,7 @@ struct ContentView: View {
                 reloadToken += 1
             }
         } message: {
-            Text("Par défaut https://barda.example.com. En développement, l'adresse du Mac sur le réseau local convient aussi.")
+            Text("Par défaut \(defaultURL). En développement, l'adresse du Mac sur le réseau local convient aussi.")
         }
     }
 }

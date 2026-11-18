@@ -1,0 +1,13 @@
+// Réglages de build publics : rien de personnel ici.
+//
+// Pour signer l'app avec ton compte, copie Local.xcconfig.example en Local.xcconfig
+// (ignoré par git) et mets-y ton équipe, ton identifiant d'app et l'adresse de ton Barda.
+
+PRODUCT_BUNDLE_IDENTIFIER = com.example.barda
+DEVELOPMENT_TEAM =
+
+// Adresse chargée au premier lancement, modifiable ensuite dans l'app.
+// Le « $() » empêche xcconfig de lire « // » comme un commentaire.
+BARDA_DEFAULT_URL = https:/$()/showcase-barda.can-ali.fr
+
+#include? "Local.xcconfig"

@@ -1,18 +1,38 @@
-# barda-ios — la coquille native
+<p align="center">
+  <img src="Barda/Assets.xcassets/AppIcon.appiconset/icon-1024.png" width="88" height="88" alt="">
+</p>
 
-Une app iPhone de quatre fichiers, qui n'a qu'une raison d'exister : **Safari n'expose pas
-Web Bluetooth**. Elle affiche [Barda](../barda) dans un `WKWebView` et lui prête un pilote
-CoreBluetooth pour l'étiqueteuse Fichero D11s.
+<h1 align="center">barda-ios</h1>
 
-Rien de l'interface n'est réécrit ici. Le site continue d'être mis à jour par un `git push`
-sur le repo web — l'app, elle, ne bouge que si le protocole d'impression change.
+<p align="center">
+  La coquille iPhone de <a href="https://github.com/Lyniiiix/barda">Barda</a> : le site, plus le Bluetooth que Safari refuse.
+</p>
+
+Une app de quelques fichiers, qui n'a qu'une raison d'exister : **Safari n'expose pas Web
+Bluetooth**. Elle affiche Barda dans un `WKWebView` et lui prête un pilote CoreBluetooth pour
+l'étiqueteuse.
+
+Rien de l'interface n'est réécrit ici. Le site se met à jour de son côté ; l'app, elle, ne bouge
+que si un protocole d'impression change.
 
 | Fichier | Rôle |
 |---|---|
 | `BardaApp.swift` | point d'entrée SwiftUI |
 | `ContentView.swift` | la vue web, plus un écran d'erreur qui permet de changer l'adresse |
-| `WebView.swift` | `WKWebView` + le pont JS ⇄ Swift + l'autorisation caméra |
-| `Printer.swift` | le protocole D11s en CoreBluetooth |
+| `WebView.swift` | `WKWebView`, le pont JS ⇄ Swift et l'autorisation caméra |
+| `Printers.swift` | le protocole `LabelPrinter` et le registre des imprimantes |
+| `FicheroD11s.swift` | le protocole de la Fichero D11s en CoreBluetooth |
+
+## Imprimantes
+
+| Imprimante | Identifiant |
+|---|---|
+| **Fichero D11s** | `fichero-d11s` |
+
+Pour en ajouter une : une classe conforme à `LabelPrinter` dans `Barda/<Modele>.swift`, avec le
+même `id` et le même `bytesPerRow` que le modèle déclaré côté web, puis une entrée dans
+`Printers.catalog`. Le guide complet est dans le README de
+[Barda](https://github.com/Lyniiiix/barda#ajouter-une-imprimante).
 
 ## Le pont
 
@@ -20,49 +40,39 @@ La page appelle :
 
 ```js
 window.webkit.messageHandlers.barda.postMessage({
-  id, action: "print", rows, raster /* base64, 1 bit/px, 12 octets par ligne */, copies, density
+  id, action: "print", printer: "fichero-d11s",
+  rows, bytesPerRow, raster /* base64, 1 bit/px */, copies, density
 })
 ```
 
-Swift répond par `window.__bardaReply(id, ok, message)`. Côté web, tout est encapsulé dans
-`src/lib/native.ts` : `hasNativePrinter()` décide quel bouton d'impression afficher.
+Swift répond par `window.__bardaReply(id, ok, message)`. Sans champ `printer`, c'est la D11s ; un
+identifiant inconnu reçoit une erreur claire. Côté web, tout est dans `src/lib/printers/native.ts`.
 
-Le rendu de l'étiquette reste **entièrement côté web** — Swift ne reçoit qu'une trame déjà
-encodée, et ne fait que la découper au MTU et l'envoyer. C'est ce qui garde l'app stable
-pendant que le site évolue.
+Le rendu de l'étiquette reste **entièrement côté web** : Swift ne reçoit qu'une trame déjà
+encodée, la découpe au MTU et l'envoie. C'est ce qui garde l'app stable pendant que le site évolue.
 
-## Adresse du serveur
+## Installer sur ton iPhone
 
-`https://barda.example.com` par défaut, mémorisée dans les réglages de l'app. Si le chargement
-échoue, un écran propose d'en saisir une autre — pratique pour viser le Mac en développement
-(`http://192.168.1.x:3210`, autorisé par `NSAllowsLocalNetworking` dans `Info.plist`).
+1. Copie `Local.xcconfig.example` en `Local.xcconfig` (ignoré par git) et remplis-le :
+   - `DEVELOPMENT_TEAM` : ton équipe Apple Developer ;
+   - `PRODUCT_BUNDLE_IDENTIFIER` : un identifiant à toi, en domaine inversé ;
+   - `BARDA_DEFAULT_URL` : l'adresse de ton instance Barda.
+2. Ouvre `Barda.xcodeproj`, branche l'iPhone, Run.
 
-## Prérequis Xcode ⚠️
+Sans `Local.xcconfig`, l'app vise la démo publique, et l'adresse se change dans l'app si le
+chargement échoue. En développement, l'adresse du Mac sur le réseau local
+(`http://192.168.1.x:3210`) est acceptée grâce à `NSAllowsLocalNetworking`.
 
-Xcode 26.6 embarque le **SDK iOS 26.5**, mais la plateforme iOS correspondante n'est pas
-installée sur ce Mac : seuls les runtimes de simulateur 26.4 et 18.2 sont présents. Conséquence
-mesurée le 2026-09-01 :
+⚠️ **Durée de validité.** Avec un compte Apple Developer **payant**, le profil vaut un an. Avec un
+compte **gratuit**, il expire au bout de **7 jours** et l'app cesse de s'ouvrir : à savoir avant
+de partir loin longtemps.
 
-- `xcodebuild -showdestinations` ne propose **aucun** simulateur ;
-- l'iPhone de test (iOS 26.5) est listé comme *ineligible*, « iOS 26.5 is not installed » ;
-- la compilation du code réussit (`BUILD SUCCEEDED` pour `-sdk iphoneos`), seul `actool` refuse
-  de compiler le catalogue d'images faute de runtime à la bonne version.
+⚠️ **Plateforme iOS dans Xcode.** Si Xcode liste ton iPhone comme *ineligible* (« iOS 26.x is not
+installed »), il manque la plateforme correspondante : Xcode ▸ Settings ▸ Components, ou
+`xcodebuild -downloadPlatform iOS` (plusieurs gigaoctets).
 
-Autrement dit : **le code est bon, c'est l'installation de Xcode qui est incomplète.** À corriger
-une fois, par Xcode ▸ Settings ▸ Components, ou :
+## Licence
 
-```
-xcodebuild -downloadPlatform iOS
-```
-
-C'est plusieurs gigaoctets. Il faut de toute façon cette plateforme pour installer quoi que ce
-soit sur l'iPhone.
-
-## Installer sur le téléphone
-
-Une fois la plateforme installée : ouvrir `Barda.xcodeproj`, onglet *Signing & Capabilities*,
-équipe `ABCDE12345`, brancher l'iPhone, Run.
-
-⚠️ **Durée de validité** : avec un compte Apple Developer **payant**, le profil vaut un an —
-l'app survit à l'absence de 4-5 mois. Avec un compte **gratuit**, il expire au bout de **7 jours**
-et l'app cesse de s'ouvrir. À vérifier avant de partir.
+[MIT](LICENSE). Protocole de la D11s d'après
+[0xmh/fichero-printer](https://github.com/0xmh/fichero-printer) (MIT). Conçu par
+[can.sys](https://can-ali.fr).

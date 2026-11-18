@@ -58,11 +58,24 @@ struct WebView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         private let parent: WebView
-        private let printer = Printer()
+        /// Un pilote par imprimante déjà utilisée. Celui par défaut est créé tout
+        /// de suite : iOS demande l'autorisation Bluetooth au lancement, comme avant.
+        private var printers: [String: LabelPrinter] = [:]
         weak var webView: WKWebView?
         var reloadToken = -1
 
-        init(_ parent: WebView) { self.parent = parent }
+        init(_ parent: WebView) {
+            self.parent = parent
+            super.init()
+            _ = driver(for: Printers.defaultID)
+        }
+
+        private func driver(for id: String) -> LabelPrinter? {
+            if let existing = printers[id] { return existing }
+            guard let made = Printers.make(id) else { return nil }
+            printers[id] = made
+            return made
+        }
 
         @objc func pullToRefresh(_ sender: UIRefreshControl) {
             webView?.reload()
@@ -108,14 +121,25 @@ struct WebView: UIViewRepresentable {
 
             switch body["action"] as? String {
             case "print":
+                let printerID = body["printer"] as? String ?? Printers.defaultID
+                guard let printer = driver(for: printerID) else {
+                    reply(id, ok: false, message: Printers.Failure.unknown(printerID).localizedDescription)
+                    return
+                }
                 guard let base64 = body["raster"] as? String,
                       let raster = Data(base64Encoded: base64),
                       let rows = body["rows"] as? Int else {
                     reply(id, ok: false, message: "étiquette illisible")
                     return
                 }
+                // Une trame faite pour une autre tête sortirait déformée : on refuse.
+                let bytesPerRow = body["bytesPerRow"] as? Int ?? printer.bytesPerRow
+                guard bytesPerRow == printer.bytesPerRow, raster.count == rows * printer.bytesPerRow else {
+                    reply(id, ok: false, message: Printers.Failure.badRaster(printer.name).localizedDescription)
+                    return
+                }
                 let copies = body["copies"] as? Int ?? 1
-                let density = UInt8(body["density"] as? Int ?? 2)
+                let density = UInt8(clamping: body["density"] as? Int ?? 2)
 
                 printer.print(rows: rows, raster: raster, copies: copies, density: density) { [weak self] step in
                     DispatchQueue.main.async { self?.parent.toast = step }
@@ -132,7 +156,7 @@ struct WebView: UIViewRepresentable {
                 }
 
             case "disconnect":
-                printer.disconnect()
+                printers.values.forEach { $0.disconnect() }
                 reply(id, ok: true, message: "déconnecté")
 
             default:

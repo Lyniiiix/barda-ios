@@ -11,6 +11,9 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- Adresse chargée au premier lancement : BARDA_DEFAULT_URL dans Barda.xcconfig. -->
+	<key>BardaDefaultURL</key>
+	<string>$(BARDA_DEFAULT_URL)</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Pour joindre Barda sur ton Mac pendant le développement.</string>
 </dict>
